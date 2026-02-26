@@ -1,14 +1,19 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 from app.events.schemas import EventCreate
+from app.kafka.producer import send_event
+from app.core.kafka_config import EVENTS_TOPIC
 
-router = APIRouter(prefix="/events", tags=["Events"])
+router = APIRouter(prefix="/events", tags=["events"])
 
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def create_event(event: EventCreate):
+    event_data = event.model_dump(mode="json")
 
-@router.post("/")
-async def ingest_event(event: EventCreate):
-    # Later: call service layer (Kafka)
+    # Send event to Kafka
+    send_event(EVENTS_TOPIC, event_data)
+
     return {
-        "message": "Event received",
-        "event_type": event.event_type,
-        "user_id": event.user_id
+        "message": "Event received and sent to Kafka",
+        "event": event_data,
+
     }
