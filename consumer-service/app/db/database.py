@@ -1,11 +1,25 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from dotenv import load_dotenv
 
-DATABASE_URL = "postgresql+psycopg2://analytics_user:analytics_pass@localhost:55432/analytics_db"
+load_dotenv()
 
-engine = create_engine(DATABASE_URL, echo=True)
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg2://analytics_user:analytics_pass@localhost:55342/analytics_db"
+)
 
-SessionLocal = sessionmaker(bind=engine)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True
+)
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False
+)
 
 class Base(DeclarativeBase):
     pass
