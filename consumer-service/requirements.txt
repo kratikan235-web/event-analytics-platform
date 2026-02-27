@@ -1,2 +1,5 @@
 kafka-python
 python-dotenv
+sqlalchemy>=2.0
+psycopg2-binary
+alembic
