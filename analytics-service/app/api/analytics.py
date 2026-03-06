@@ -7,7 +7,8 @@ from typing import Optional
 from app.schemas.event import EventsListResponse
 from app.db.database import get_db
 from sqlalchemy.orm import Session
-
+from app.core.redis_client import redis_client
+import json
 
 router = APIRouter()
 
@@ -23,6 +24,20 @@ def get_events(
     db: Session = Depends(get_db)
 ):
 
+    # Create unique cache key
+    cache_key = f"events:{user_id}:{event_type}:{start}:{end}:{limit}:{offset}"
+
+    print("CACHE KEY:", cache_key)
+
+    # Check cache
+    cached_data = redis_client.get(cache_key)
+
+    if cached_data:
+        print("CACHE HIT")
+        return EventsListResponse(**json.loads(cached_data))
+    print("CACHE MISS - DB QUERY")
+
+    # DB query
     query = db.query(Event)
 
     if user_id:
@@ -40,10 +55,20 @@ def get_events(
     total_events = query.count()
     events = query.offset(offset).limit(limit).all()
 
-    return {
-        "total_events": total_events,
-        "events": events
-    }
+    # Convert to Pydantic response
+    response = EventsListResponse(
+        total_events=total_events,
+        events=events
+    )
+
+    # Save in Redis (60 sec cache)
+    redis_client.setex(
+        cache_key,
+        60,
+        json.dumps(response.model_dump(), default=str)
+    )
+
+    return response
 
 # Events by Count
 @router.get("/events/count")
