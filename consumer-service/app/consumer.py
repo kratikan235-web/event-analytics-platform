@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.database import SessionLocal
 from app.db.models import Event
+from app.raw_events import save_raw_event
 
 load_dotenv()
 
@@ -27,6 +28,10 @@ for message in consumer:
     db = SessionLocal()
 
     try:
+        # Save raw event
+        save_raw_event(event_data)
+
+        # Save to PostgreSQL DB (Still raw for now)
         event = Event(
             event_type=event_data["event_type"],
             user_id=event_data.get("user_id"),
@@ -36,7 +41,6 @@ for message in consumer:
 
         db.add(event)
         db.commit()        # DB success
-
         consumer.commit()  # Kafka offset commit AFTER DB
 
         print("Event saved to DB:", event_data)
