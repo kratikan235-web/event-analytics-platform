@@ -19,3 +19,6 @@ venv/
 
 # raw events
 raw_events/
+
+# processed events
+processed_events/
