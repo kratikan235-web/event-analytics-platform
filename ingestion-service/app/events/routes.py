@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
 from app.events.schemas import EventCreate
 from app.kafka.producer import send_event
-from app.core.kafka_config import EVENTS_TOPIC
+from app.core.kafka_config import KAFKA_TOPIC
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -10,7 +10,7 @@ def create_event(event: EventCreate):
     event_data = event.model_dump(mode="json")
 
     # Send event to Kafka
-    send_event(EVENTS_TOPIC, event_data)
+    send_event(KAFKA_TOPIC, event_data)
 
     return {
         "message": "Event received and sent to Kafka",
