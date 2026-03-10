@@ -6,11 +6,13 @@ from pyspark.sql.functions import current_timestamp
 from app.schemas.event_schema import ProcessedEvent
 from app.db.database import SessionLocal
 from app.db.models import Event
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 
-RAW_PATH = "/home/kratika/Documents/Projects/event-analytics-platform/consumer-service/raw_events/"
-PROCESSED_PATH = "/home/kratika/Documents/Projects/event-analytics-platform/consumer-service/processed_events/"
-
+RAW_PATH = os.getenv("RAW_PATH")
+PROCESSED_PATH = os.getenv("PROCESSED_PATH")
 
 def create_spark_session():
     return SparkSession.builder.appName("EventProcessingJob").getOrCreate()
