@@ -29,7 +29,7 @@ class Event(Base):
     )
 
     event_timestamp: Mapped[datetime] = mapped_column(
-        TIMESTAMP,
+        TIMESTAMP(timezone=True),
         nullable=False
     )
 
@@ -39,6 +39,6 @@ class Event(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP,
+        TIMESTAMP(timezone=True),
         server_default=func.now()
     )

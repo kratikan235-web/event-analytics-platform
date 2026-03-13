@@ -9,6 +9,9 @@ from app.db.database import get_db
 from sqlalchemy.orm import Session
 from app.core.redis_client import redis_client
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -24,18 +27,22 @@ def get_events(
     db: Session = Depends(get_db)
 ):
 
+    logger.info(
+    f"Fetching events | user_id={user_id} event_type={event_type} "
+    f"start={start} end={end} limit={limit} offset={offset}"
+    )
     # Create unique cache key
     cache_key = f"events:{user_id}:{event_type}:{start}:{end}:{limit}:{offset}"
 
-    print("CACHE KEY:", cache_key)
+    logger.info(f"Cache key generated: {cache_key}")
 
     # Check cache
     cached_data = redis_client.get(cache_key)
 
     if cached_data:
-        print("CACHE HIT")
+        logger.info("CACHE HIT - Returning cached data")
         return EventsListResponse(**json.loads(cached_data))
-    print("CACHE MISS - DB QUERY")
+    logger.info("CACHE MISS - Querying database")
 
     # DB query
     query = db.query(Event)
@@ -73,6 +80,7 @@ def get_events(
 # Events by Count
 @router.get("/events/count")
 def get_event_count(db: Session = Depends(get_db)):
+    logger.info("Fetching total event count")
     count = db.query(func.count(Event.id)).scalar()
     return {
         "total_events": count
@@ -81,6 +89,7 @@ def get_event_count(db: Session = Depends(get_db)):
 # Events by Type
 @router.get("/events/by-type")
 def events_by_type(db: Session = Depends(get_db)):
+    logger.info("Fetching event count by type")
     results = (
         db.query(Event.event_type, func.count(Event.id))
         .group_by(Event.event_type)
@@ -94,6 +103,7 @@ def events_by_type(db: Session = Depends(get_db)):
 # Events by User
 @router.get("/events/by-user")
 def events_by_user(db: Session = Depends(get_db)):
+    logger.info("Fetching event count by user")
     results = (
         db.query(Event.user_id, func.count(Event.id))
         .group_by(Event.user_id)
@@ -107,6 +117,7 @@ def events_by_user(db: Session = Depends(get_db)):
 # Events Timeline
 @router.get("/events/timeline")
 def events_timeline(db: Session = Depends(get_db)):
+    logger.info("Fetching event count timeline")
     results = (
         db.query(
             func.date(Event.event_timestamp),

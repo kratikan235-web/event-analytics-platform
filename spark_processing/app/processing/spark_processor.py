@@ -8,6 +8,13 @@ from app.db.database import SessionLocal
 from app.db.models import Event
 from dotenv import load_dotenv
 import os
+import logging
+from common_logging.logging_config import setup_logging
+
+logging.getLogger("py4j").setLevel(logging.ERROR)
+
+setup_logging("spark_processor")
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -15,15 +22,31 @@ RAW_PATH = os.getenv("RAW_PATH")
 PROCESSED_PATH = os.getenv("PROCESSED_PATH")
 
 def create_spark_session():
-    return SparkSession.builder.appName("EventProcessingJob").getOrCreate()
+    logger.info("Creating Spark session")
 
+    os.environ["SPARK_LOCAL_IP"] = "127.0.0.1"
+
+    spark = (
+        SparkSession.builder
+        .appName("EventProcessingJob")
+        .config("spark.sql.session.timeZone", "UTC")
+        .config("spark.ui.showConsoleProgress", "false")
+        .config("spark.ui.enabled", "false")
+        .getOrCreate()
+    )
+
+    # Reduce Spark internal logs
+    spark.sparkContext.setLogLevel("ERROR")
+
+    return spark
 
 def read_events(spark):
+    logger.info(f"Reading events from {RAW_PATH}")
     return spark.read.json(RAW_PATH)
 
 
 def transform_events(df):
-
+    logger.info("Transforming events")
     df = df.withColumn("processed_at", current_timestamp())
 
     columns = df.columns
@@ -39,10 +62,13 @@ def transform_events(df):
 
     if "payload" in df.columns:
         dedupe_cols.append("payload")
-
-    return df.dropDuplicates(dedupe_cols)
+ 
+    df = df.dropDuplicates(dedupe_cols)
+    logger.info("Deduplication completed")
+    return df
 
 def validate_events(rows):
+    logger.info("Validating events")
     validated = []
 
     for row in rows:
@@ -53,10 +79,12 @@ def validate_events(rows):
         else:
             data["payload"] = None
         validated.append(ProcessedEvent(**data))
+    logger.info(f"Validation completed. Validated {len(validated)} events.")
     return validated
 
 
 def save_events(events):
+    logger.info(f"Saving {len(events)} events to database")
     db = SessionLocal()
 
     db.add_all([
@@ -64,13 +92,14 @@ def save_events(events):
             event_type=e.event_type,
             user_id=e.user_id,
             payload=e.payload,
-            event_timestamp=e.processed_at
+            event_timestamp=e.timestamp
         )
         for e in events
     ])
 
     db.commit()
     db.close()
+    logger.info("Events saved to database successfully")
 
 
 def move_files():
@@ -84,7 +113,7 @@ def move_files():
 
 def main():
     if not os.listdir(RAW_PATH):
-        print("No raw events to process.")
+        logger.info("No files to process. Exiting.")
         return
 
     spark = create_spark_session()
@@ -92,7 +121,9 @@ def main():
     df = read_events(spark)
 
     # DEBUG
+    logger.debug("printing raw dataframe schema")
     df.printSchema()
+    logger.debug("showing raw dataframe sample data")
     df.show()
 
     processed_df = transform_events(df)
@@ -104,6 +135,7 @@ def main():
     save_events(events)
 
     move_files()
+    logger.info("Processing completed successfully")
 
 
 if __name__ == "__main__":

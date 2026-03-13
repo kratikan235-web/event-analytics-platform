@@ -2,7 +2,6 @@ import json
 from confluent_kafka import Producer
 from app.core.kafka_config import KAFKA_BOOTSTRAP_SERVERS
 
-
 def delivery_report(err, msg):
     if err is not None:
         print(f"Delivery failed: {err}")
