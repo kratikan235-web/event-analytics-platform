@@ -15,6 +15,7 @@ venv/
 .idea/
 
 # Logs
+logs/
 *.log
 
 # raw events
