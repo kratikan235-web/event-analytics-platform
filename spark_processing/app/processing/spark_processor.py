@@ -103,17 +103,22 @@ def save_events(events):
 
 
 def move_files():
-    os.makedirs(PROCESSED_PATH, exist_ok=True)
+    for root, dirs, files in os.walk(RAW_PATH):
+        for file in files:
+            src = os.path.join(root, file)
 
-    for file in os.listdir(RAW_PATH):
-        shutil.move(
-            os.path.join(RAW_PATH, file),
-            os.path.join(PROCESSED_PATH, file)
-        )
+            relative = os.path.relpath(root, RAW_PATH)
+            parts = relative.split(os.sep)
+
+            dest_dir = os.path.join(PROCESSED_PATH, *parts)
+            os.makedirs(dest_dir, exist_ok=True)
+
+            dest = os.path.join(dest_dir, file)
+            shutil.move(src, dest)
 
 def main():
-    if not os.listdir(RAW_PATH):
-        logger.info("No files to process. Exiting.")
+    if not os.path.exists(RAW_PATH):
+        logger.info("RAW_PATH does not exist. Exiting.")
         return
 
     spark = create_spark_session()
