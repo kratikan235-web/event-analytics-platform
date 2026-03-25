@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Data folders
+raw_events/
+processed_events/
+data/
+datasets/
+
+# Git
+.git
+.gitignore
+
+# Cache / temp
+tmp/
+temp/
+.cache/
+
+# Jupyter (if any)
+.ipynb_checkpoints/
+
+# Node (if exists anywhere)
+node_modules/

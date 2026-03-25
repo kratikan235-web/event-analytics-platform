@@ -18,8 +18,14 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-RAW_PATH = os.getenv("RAW_PATH")
-PROCESSED_PATH = os.getenv("PROCESSED_PATH")
+# RAW_PATH = os.getenv("RAW_PATH")
+# PROCESSED_PATH = os.getenv("PROCESSED_PATH")
+if os.getenv("DOCKER_ENV") == "true":
+    RAW_PATH = "/app/raw_events"
+    PROCESSED_PATH = "/app/processed_events"
+else:
+    RAW_PATH = "/home/kratika/Documents/Projects/event-analytics-platform/consumer-service/raw_events/"
+    PROCESSED_PATH = "/home/kratika/Documents/Projects/event-analytics-platform/consumer-service/processed_events/"
 
 def create_spark_session():
     logger.info("Creating Spark session")
@@ -42,8 +48,9 @@ def create_spark_session():
 
 def read_events(spark):
     logger.info(f"Reading events from {RAW_PATH}")
-    return spark.read.json(RAW_PATH)
-
+    # return spark.read.json(RAW_PATH)
+    # return spark.read.json(f"{RAW_PATH}/**/*.json")
+    return spark.read.option("recursiveFileLookup", "true").json(RAW_PATH)
 
 def transform_events(df):
     logger.info("Transforming events")
@@ -101,47 +108,91 @@ def save_events(events):
     db.close()
     logger.info("Events saved to database successfully")
 
-
 def move_files():
+    moved = False
+
     for root, dirs, files in os.walk(RAW_PATH):
         for file in files:
+            if not file.endswith(".json"):
+                continue
+
             src = os.path.join(root, file)
 
             relative = os.path.relpath(root, RAW_PATH)
-            parts = relative.split(os.sep)
+            dest_dir = os.path.join(PROCESSED_PATH, relative)
 
-            dest_dir = os.path.join(PROCESSED_PATH, *parts)
             os.makedirs(dest_dir, exist_ok=True)
 
             dest = os.path.join(dest_dir, file)
             shutil.move(src, dest)
 
+            moved = True
+
+    if moved:
+        logger.info("Files moved to processed folder")
+
+    # REMOVE EMPTY DIRECTORIES
+    for root, dirs, files in os.walk(RAW_PATH, topdown=False):
+        if not dirs and not files:
+            os.rmdir(root)
+
+
+def has_files(path):
+    return any(
+        file.endswith(".json")
+        for _, _, files in os.walk(path)
+        for file in files
+    )
+
+import time
+
 def main():
-    if not os.path.exists(RAW_PATH):
-        logger.info("RAW_PATH does not exist. Exiting.")
-        return
+    while True:
+        try:
+            if not os.path.exists(RAW_PATH):
+                logger.info("RAW_PATH does not exist. Retrying...")
+                time.sleep(5)
+                continue
 
-    spark = create_spark_session()
+            if not has_files(RAW_PATH):
+                logger.info("No files to process. Waiting...")
+                time.sleep(5)   # wait instead of exit
+                continue
 
-    df = read_events(spark)
+            logger.info("Files found. Starting processing...")
 
-    # DEBUG
-    logger.debug("printing raw dataframe schema")
-    df.printSchema()
-    logger.debug("showing raw dataframe sample data")
-    df.show()
+            spark = create_spark_session()
 
-    processed_df = transform_events(df)
+            df = read_events(spark)
 
-    rows = processed_df.toLocalIterator()
+            logger.debug("printing raw dataframe schema")
+            df.printSchema()
 
-    events = validate_events(rows)
+            logger.debug("showing raw dataframe sample data")
+            df.show()
 
-    save_events(events)
+            processed_df = transform_events(df)
 
-    move_files()
-    logger.info("Processing completed successfully")
+            rows = processed_df.toLocalIterator()
 
+            events = validate_events(rows)
+
+            save_events(events)
+
+            move_files()
+
+            spark.catalog.clearCache()
+            spark.stop()
+
+            logger.info("Processing completed successfully")
+
+            time.sleep(5)  # avoid tight loop
+
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            time.sleep(5)
 
 if __name__ == "__main__":
     main()
+
+

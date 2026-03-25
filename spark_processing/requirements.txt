@@ -1,0 +1,6 @@
+pyspark
+sqlalchemy
+psycopg2-binary
+python-dotenv
+pydantic
+kafka-python
