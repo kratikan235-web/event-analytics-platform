@@ -44,10 +44,12 @@ services:
   postgres:
     image: postgres:15
     container_name: analytics-postgres
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: analytics_db
-      POSTGRES_USER: analytics_user
-      POSTGRES_PASSWORD: analytics_pass
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "55342:5432"
     volumes:
