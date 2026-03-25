@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RAW_PATH = os.getenv("RAW_PATH")
 
 def save_raw_event(event_data):
     now = datetime.utcnow()
@@ -12,8 +12,7 @@ def save_raw_event(event_data):
     day = now.strftime("%d")
 
     partition_path = os.path.join(
-        BASE_DIR,
-        "raw_events",
+        RAW_PATH,
         f"year={year}",
         f"month={month}",
         f"day={day}"

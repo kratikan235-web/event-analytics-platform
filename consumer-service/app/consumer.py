@@ -11,17 +11,27 @@ load_dotenv()
 setup_logging("consumer")
 logger = logging.getLogger(__name__)
 logging.getLogger("kafka").setLevel(logging.WARNING)
+import time
 
-consumer = KafkaConsumer(
-    os.getenv("KAFKA_TOPIC"),
-    bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
-    auto_offset_reset="earliest",
-    enable_auto_commit=False,
-    group_id=os.getenv("KAFKA_CONSUMER_GROUP"),
-    value_deserializer=lambda x: json.loads(x.decode("utf-8")),
-)
+while True:
+    try:
+        logger.info("Connecting to Kafka...")
 
-logger.info("Consumer started. Waiting for events...")
+        consumer = KafkaConsumer(
+            os.getenv("KAFKA_TOPIC"),
+            bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
+            auto_offset_reset="latest",
+            enable_auto_commit=True,
+            group_id=os.getenv("KAFKA_CONSUMER_GROUP"),
+            value_deserializer=lambda x: json.loads(x.decode("utf-8")),
+        )
+
+        logger.info("Consumer started. Waiting for events...")
+        break
+
+    except Exception as e:
+        logger.error(f"Kafka not ready, retrying... {e}")
+        time.sleep(5)
 
 for message in consumer:
     event_data = message.value
